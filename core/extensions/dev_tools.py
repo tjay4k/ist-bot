@@ -18,8 +18,13 @@ logger = logging.getLogger(__name__)
 # -------------------------------
 
 
-def get_all_cogs() -> list[str]:
-    return [f.stem for f in Path("./cogs").glob("*.py")if not f.name.startswith("_")]
+def get_all_cogs(bot) -> set[str]:
+    all_cogs = [f.stem for f in Path(
+        "./cogs").glob("*.py")if not f.name.startswith("_")]
+    if bot.mode == "dev":
+        all_cogs |= {f.stem for f in Path(
+            "./dev").glob("*.py") if not f.stem.startswith("_")}
+    return all_cogs
 
 
 def get_loaded_cogs(bot) -> set[str]:
