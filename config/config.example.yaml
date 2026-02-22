@@ -1,0 +1,25 @@
+# ============================================================================
+# Settings
+# ============================================================================
+
+# ---------- General ----------
+
+general:
+  owners:
+    - DISCORD_ID
+    - DISCORD_ID
+  developers:
+    - DISCORD_ID
+    - DISCORD_ID
+
+  dev_guild_ids:
+    - GUILD_ID
+    - GUILD_ID
+
+  enabled_cogs:
+    - bot_management
+
+  disabled_cogs:
+
+  # Used to send a message to a webhook when an error occurs on top of logging it outside of Discord.
+  webhook_url: "YOUR_WEBHOOK_URL"
