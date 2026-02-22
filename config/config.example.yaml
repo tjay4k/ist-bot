@@ -23,3 +23,18 @@ general:
 
   # Used to send a message to a webhook when an error occurs on top of logging it outside of Discord.
   webhook_url: "YOUR_WEBHOOK_URL"
+
+# ---------- Action log ----------
+
+action_log:
+  1466555681300549816: # [TGE] Imperial Shock Troopers
+    message_events:
+      delete:
+        enabled: true
+        channel_id: CHANNEL_ID
+      edit:
+        enabled: true
+        channel_id: CHANNEL_ID
+      bulk_delete:
+        enabled: true
+        channel_id: CHANNEL_ID
