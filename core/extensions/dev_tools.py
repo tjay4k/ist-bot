@@ -110,7 +110,13 @@ class DeveloperGroup(commands.Cog):
     async def reload_cog(self, interaction: discord.Interaction, cog: str):
         await interaction.response.defer(ephemeral=True)
 
-        await self.bot.reload_extension(f"cogs.{cog}")
+        full_ext = next((ext for ext in self.bot.extensions if ext.split(".")[-1] == cog), None)
+        if not full_ext:
+            embed = create_embed(description=f"❌ `{cog}` is not loaded.")
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        await self.bot.reload_extension(full_ext)
         await self.sync_to_dev_guilds()
         await self.bot.tree.sync()
 
