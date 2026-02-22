@@ -44,6 +44,8 @@ class ActionLog(commands.Cog):
             inline=False
         )
 
+        await channel.send(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ActionLog(bot))
