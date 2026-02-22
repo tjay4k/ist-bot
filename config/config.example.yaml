@@ -27,7 +27,19 @@ general:
 # ---------- Action log ----------
 
 action_log:
-  1466555681300549816: # [TGE] Imperial Shock Troopers
+  GUILD_ID_1: 
+    message_events:
+      delete:
+        enabled: true
+        channel_id: CHANNEL_ID
+      edit:
+        enabled: true
+        channel_id: CHANNEL_ID
+      bulk_delete:
+        enabled: true
+        channel_id: CHANNEL_ID
+  
+  GUILD_ID_2: 
     message_events:
       delete:
         enabled: true

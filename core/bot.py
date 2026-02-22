@@ -106,7 +106,7 @@ class ISTBot(commands.Bot):
             for file in Path("./dev").glob("*.py"):
                 if file.stem.startswith("_"):
                     continue
-                ext = f"core.extensions.{file.stem}"
+                ext = f"dev.{file.stem}"
                 if ext in self.extensions:
                     continue
 
