@@ -18,8 +18,13 @@ logger = logging.getLogger(__name__)
 # -------------------------------
 
 
-def get_all_cogs() -> list[str]:
-    return [f.stem for f in Path("./cogs").glob("*.py")if not f.name.startswith("_")]
+def get_all_cogs(bot) -> set[str]:
+    all_cogs = [f.stem for f in Path(
+        "./cogs").glob("*.py")if not f.name.startswith("_")]
+    if bot.mode == "dev":
+        all_cogs |= {f.stem for f in Path(
+            "./dev").glob("*.py") if not f.stem.startswith("_")}
+    return all_cogs
 
 
 def get_loaded_cogs(bot) -> set[str]:
@@ -105,7 +110,13 @@ class DeveloperGroup(commands.Cog):
     async def reload_cog(self, interaction: discord.Interaction, cog: str):
         await interaction.response.defer(ephemeral=True)
 
-        await self.bot.reload_extension(f"cogs.{cog}")
+        full_ext = next((ext for ext in self.bot.extensions if ext.split(".")[-1] == cog), None)
+        if not full_ext:
+            embed = create_embed(description=f"❌ `{cog}` is not loaded.")
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        await self.bot.reload_extension(full_ext)
         await self.sync_to_dev_guilds()
         await self.bot.tree.sync()
 

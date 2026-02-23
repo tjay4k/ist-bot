@@ -45,6 +45,8 @@ async def main():
         token = os.getenv("DISCORD_TOKEN_PROD")
     elif mode == "dev":
         token = os.getenv("DISCORD_TOKEN_DEV")
+    elif mode == "debug":
+        token = os.getenv("DISCORD_TOKEN_DEV")
     else:
         raise RuntimeError(f"Invalid mode, available modes: 'prod' & 'dev'")
 
