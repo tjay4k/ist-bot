@@ -100,8 +100,8 @@ class ISTBot(commands.Bot):
                 logger.error(
                     f"Failed to load core extension {file.stem}", exc_info=True)
 
-        # ---------- Load dev/ scripts (mode: dev) ----------
-        if self.mode == "dev":
+        # ---------- Load dev/ scripts (mode: dev/debug) ----------
+        if self.mode in ("dev", "debug"):
             logger.info("DEV mode: developer tools enabled")
             for file in Path("./dev").glob("*.py"):
                 if file.stem.startswith("_"):
