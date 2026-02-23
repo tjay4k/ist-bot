@@ -15,15 +15,23 @@ class ActionLog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
+        if not message.guild:
+            return
+        
         if message.author == self.bot.user:
             return
 
+        logger.debug(f"Message delete fired in guild {message.guild.id}")
+
         event_config = config.get("action_log", str(
             message.guild.id), "message_events", "delete")
+        logger.debug(f"Event config: {event_config}")
         if not event_config or not event_config.get("enabled", False):
+            logger.debug("Event config missing or disabled")
             return
 
         channel = message.guild.get_channel(event_config.get("channel_id"))
+        logger.debug(f"Log channel: {channel}")
         if not channel:
             return
 
@@ -39,7 +47,7 @@ class ActionLog(commands.Cog):
             timestamp=True,
         )
         embed.add_field(
-            name="**Message**",
+            name="Message",
             value=message.content,
             inline=False
         )
