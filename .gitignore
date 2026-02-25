@@ -2,6 +2,7 @@
 .env
 config/.env
 config/config.yaml
+config/sheets_credentials.json
 
 # Python cache
 __pycache__/

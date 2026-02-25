@@ -27,7 +27,7 @@ general:
 # ---------- Action log ----------
 
 action_log:
-  GUILD_ID_1: 
+  GUILD_ID_1:
     message_events:
       delete:
         enabled: true
@@ -38,18 +38,18 @@ action_log:
       bulk_delete:
         enabled: true
         channel_id: CHANNEL_ID
-  
-  GUILD_ID_2: 
+
+  GUILD_ID_2:
     message_events:
       delete:
         enabled: true
-        channel_id: 
+        channel_id:
       edit:
         enabled: true
-        channel_id: 
+        channel_id:
       bulk_delete:
         enabled: true
-        channel_id: 
+        channel_id:
     member_events:
       join:
         enabled: true
@@ -75,3 +75,20 @@ action_log:
       unban:
         enabled: true
         channel_id:
+
+# ---------- Staff Rating ----------
+
+staff_rating:
+  "": 
+    enabled: true
+    auto_post: true 
+    channel_id:  
+    spreadsheet_url: ""
+    mention_role_id:  
+
+  "": 
+    enabled: true
+    auto_post: false 
+    channel_id: 
+    spreadsheet_url: ""
+    mention_role_id:

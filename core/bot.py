@@ -41,7 +41,7 @@ class ISTBot(commands.Bot):
         self.services[name] = service
 
     def get_service(self, name: str):
-        return self._services.get(name)
+        return self.services.get(name)
 
     # -------------------------
     # Startup lifecycle
