@@ -125,7 +125,7 @@ class StaffRating(commands.Cog):
             spreadsheet = self.sheets_service.open_by_url(sheet_url)
 
             # Build intro message
-            intro_text = "## Coruscant Guard Staff Rating\n"
+            intro_text = "## Imperial Shock Troopers Officer Rating\n"
             intro_text += "This rating is conducted to gather insight into how our officer team is perceived by the community. "
             intro_text += "Please be honest with your feedback, your responses will **not affect any promotions or demotions.** "
             intro_text += "This is solely for internal review and continuous improvement. "
