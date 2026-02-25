@@ -2,3 +2,5 @@ discord.py
 aiohttp
 python-dotenv
 pyyaml
+gspread
+oath2client
