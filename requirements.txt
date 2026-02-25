@@ -3,4 +3,4 @@ aiohttp
 python-dotenv
 pyyaml
 gspread
-oath2client
+oauth2client
