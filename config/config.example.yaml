@@ -43,10 +43,35 @@ action_log:
     message_events:
       delete:
         enabled: true
-        channel_id: CHANNEL_ID
+        channel_id: 
       edit:
         enabled: true
-        channel_id: CHANNEL_ID
+        channel_id: 
       bulk_delete:
         enabled: true
-        channel_id: CHANNEL_ID
+        channel_id: 
+    member_events:
+      join:
+        enabled: true
+        channel_id:
+      leave:
+        enabled: true
+        channel_id:
+      role_add:
+        enabled: true
+        channel_id:
+      role_remove:
+        enabled: true
+        channel_id:
+      timeout:
+        enabled: true
+        channel_id:
+      nickname_change:
+        enabled: true
+        channel_id:
+      ban:
+        enabled: true
+        channel_id:
+      unban:
+        enabled: true
+        channel_id:
