@@ -30,7 +30,7 @@ class StaffRating(commands.Cog):
             # High Command
             ("header", "### ▬▬▬▬▬ High Command ▬▬▬▬▬"),
             ("High Command", "F14", "**Commander**"),
-            ("High Command", "F15", "**ViceCommander**"),
+            ("High Command", "F15", "**Vice Commander**"),
             ("High Command", "F16", "**Executive Officer**"),
 
             # Riot Company Command
@@ -47,7 +47,6 @@ class StaffRating(commands.Cog):
             ("Shock Company", "F18", "**Captain**"),
             ("Shock Company", "F19", "**Lieutenant**"),
             ("Shock Company", "F20", "**Lieutenant**"),
-            ("Shock Company", "F21", "**Lieutenant**"),
 
             # Instructor Team
             ("header", "### ▬▬▬▬▬ Instructor Team Command ▬▬▬▬▬"),

@@ -18,6 +18,7 @@ general:
 
   enabled_cogs:
     - bot_management
+    - staff_rating
 
   disabled_cogs:
 
