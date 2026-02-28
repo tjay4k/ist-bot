@@ -3,83 +3,87 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from config.config import config
 
-# -------------------------------
-# Utility Functions
-# -------------------------------
+# ============================================================
+# COG ACCESS CHECKS
+# ============================================================
 
 
-def _raise_check_failure(message: str):
-    """Helper to raise an AppCommand CheckFailure with a custom message"""
-    raise app_commands.CheckFailure(message)
+async def is_cog_enabled(guild_id: int, cog_name: str) -> bool:
+    """Check if a cog is enabled both globally and for the specific guild."""
+    if not await config.is_cog_globally_enabled(cog_name):
+        return False
+    return await config.is_cog_enabled(guild_id, cog_name)
 
-# -------------------------------
-# Slash Command Checks
-# -------------------------------
+
+# ============================================================
+# SLASH COMMAND CHECKS
+# ============================================================
 
 
 def requires_owner():
-    """Slash command decorator: only bot owners can run"""
-
-    owners = set(config.get("general", "owners", default=[]))
-
+    """Slash command decorator: only bot owners can run."""
     async def predicate(interaction: Interaction) -> bool:
+        owners = await config.get_owners()
         if interaction.user.id in owners:
             return True
-        _raise_check_failure("🚫 Only bot owners can use this command.")
+        raise app_commands.CheckFailure()
     return app_commands.check(predicate)
 
 
 def requires_developer():
-    """Slash command decorator: bot developers or owners"""
-
-    developers = set(config.get("general", "developers", default=[]))
-    owners = set(config.get("general", "owners", default=[]))
-
+    """Slash command decorator: bot developers or owners."""
     async def predicate(interaction: Interaction) -> bool:
-        if interaction.user.id in developers or interaction.user.id in owners:
+        owners = await config.get_owners()
+        developers = await config.get_developers()
+        if interaction.user.id in owners or interaction.user.id in developers:
             return True
-        _raise_check_failure("🚫 Only developers can use this command.")
+        raise app_commands.CheckFailure()
     return app_commands.check(predicate)
 
 
 def has_manage_bot():
-    """Decorator for guild admin commands (Manage Server permission)"""
-
+    """Slash command decorator: requires Manage Server permission."""
     async def predicate(interaction: Interaction) -> bool:
         member = interaction.guild.get_member(interaction.user.id)
         if member is None:
-            _raise_check_failure("Unable to fetch your member data.")
-
+            raise app_commands.CheckFailure()
         if member.guild_permissions.manage_guild:
             return True
-        _raise_check_failure("❌ You need the Manage Server permission.")
+        raise app_commands.CheckFailure()
     return app_commands.check(predicate)
 
-# -------------------------------
-# Prefix Command Checks
-# -------------------------------
+
+def requires_guild_role(role_type: str):
+    """Slash command decorator: user must have a configured guild role."""
+    async def predicate(interaction: Interaction) -> bool:
+        allowed_role_ids = await config.get_guild_roles(interaction.guild.id, role_type)
+        member_role_ids = {role.id for role in interaction.user.roles}
+        if allowed_role_ids & member_role_ids:
+            return True
+        raise app_commands.CheckFailure()
+    return app_commands.check(predicate)
+
+# ============================================================
+# PREFIX COMMAND CHECKS
+# ============================================================
 
 
 def is_owner_prefix():
-    """Prefix command: only bot owners"""
-
-    owners = set(config.get("general", "owners", default=[]))
-
+    """Prefix command: only bot owners."""
     async def predicate(ctx: commands.Context) -> bool:
+        owners = await config.get_owners()
         if ctx.author.id in owners:
             return True
-        raise commands.CheckFailure("🚫 Only bot owners can use this command.")
+        raise commands.CheckFailure()
     return commands.check(predicate)
 
 
 def is_developer_prefix():
-    """Prefix command: bot developers or owners"""
-
-    developers = set(config.get("general", "developers", default=[]))
-    owners = set(config.get("general", "owners", default=[]))
-
+    """Prefix command: bot developers or owners."""
     async def predicate(ctx: commands.Context) -> bool:
+        owners = await config.get_owners()
+        developers = await config.get_developers()
         if ctx.author.id in developers or ctx.author.id in owners:
             return True
-        raise commands.CheckFailure("🚫 Only developers can use this command.")
+        raise commands.CheckFailure()
     return commands.check(predicate)

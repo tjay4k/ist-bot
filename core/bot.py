@@ -4,10 +4,14 @@ from pathlib import Path
 import logging
 import importlib
 from config.config import config
+from config.defaults import get_all_defaults
 from core.errors import handle_app_command_error
 
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# BOT CLASS
+# ============================================================
 
 class ISTBot(commands.Bot):
     """
@@ -15,8 +19,10 @@ class ISTBot(commands.Bot):
 
     Handles:
     • startup configuration
+    • service loading
     • cog loading
     • command syncing
+    • guild registration
     • runtime mode behavior
     """
 
@@ -35,39 +41,45 @@ class ISTBot(commands.Bot):
             help_command=None
         )
 
-    # Dynamic service(s) registry/usage
+    # ----------------------------
+    # SERVICE REGISTRY
+    # ----------------------------
 
     def register_service(self, name: str, service):
+        """Register a service. Access anywhere via bot.get_service('name')."""
         self.services[name] = service
 
     def get_service(self, name: str):
+        """Retrieve a registered service by name. Returns None if not found."""
         return self.services.get(name)
 
     # -------------------------
-    # Startup lifecycle
+    # STARTUP LIFECYCLE
     # -------------------------
 
     async def setup_hook(self):
         """
         Runs before the bot connects to Discord.
 
-        Responsible for:
-        • loading cogs
-        • syncing slash commands
-        • applying mode-specific behavior
+        Order of operations:
+        1. Enable centralized command error handling
+        2. Load services (database, etc)
+        3. Initialize config with database
+        4. Load cogs
+        5. Sync slash commands
         """
         logger.info(f"Starting bot in {self.mode.upper()} mode")
 
-        # Enable centralized error handling
         self.tree.on_error = handle_app_command_error
 
         await self.load_services()
-        # Acces them via: self.bot.get_service("sheets")
+        config.init(self)
+
         await self.load_enabled_cogs()
         await self.sync_commands()
 
     async def on_ready(self):
-        """Fires when the bot is fully connected."""
+        """Fires when the bot is fully connected and ready."""
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Connected to {len(self.guilds)} guild(s)")
 
@@ -76,17 +88,38 @@ class ISTBot(commands.Bot):
             status=discord.Status.online
         )
 
+        # ---------- Register existing guilds ----------
+        await self.register_guilds()
+
     # -------------------------
-    # Cog loading
+    # SERVICE LOADING
+    # -------------------------
+    async def load_services(self):
+        """
+        Auto-discovers and loads all services in the services/ directory.
+        Each service must have an async setup(bot) function to be loaded.
+        """
+        for file in Path("./services").glob("*.py"):
+            if file.stem.startswith("_"):
+                continue
+            module = importlib.import_module(f"services.{file.stem}")
+            if hasattr(module, "setup"):
+                await module.setup(self)
+                logger.info(f"Loaded service: {file.stem}")
+    
+    # -------------------------
+    # COG LOADING
     # -------------------------
 
     async def load_enabled_cogs(self):
         """
-        Auto-discovers cogs and loads those enabled in config.
+        Auto-discovers and load cogs based on runtime mode.
 
-        DEV mode can optionally include developer tools.
+        core/extensions/ -> always loaded (prod, dev, & debug)
+        dev/             -> only loaded in dev/debug mode
+        cogs/            -> always loaded (all modes)
         """
-        # ---------- Load core extensions (mode: prod & dev) ----------
+        # ---------- Core extensions (all modes) ----------
         for file in Path("./core/extensions").glob("*.py"):
             if file.stem.startswith("_"):
                 continue
@@ -100,7 +133,7 @@ class ISTBot(commands.Bot):
                 logger.error(
                     f"Failed to load core extension {file.stem}", exc_info=True)
 
-        # ---------- Load dev/ scripts (mode: dev/debug) ----------
+        # ---------- Dev scripts (dev/debug mode only) ----------
         if self.mode in ("dev", "debug"):
             logger.info("DEV mode: developer tools enabled")
             for file in Path("./dev").glob("*.py"):
@@ -109,59 +142,41 @@ class ISTBot(commands.Bot):
                 ext = f"dev.{file.stem}"
                 if ext in self.extensions:
                     continue
-
-                cog = file.stem
                 try:
-                    await self.load_extension(f"dev.{cog}")
-                    logger.info(f"Loaded dev cog: {cog}")
+                    await self.load_extension(ext)
+                    logger.info(f"Loaded dev cog: {file.stem}")
                 except Exception as e:
                     logger.error(
-                        f"Failed to load dev cog {cog}", exc_info=True)
+                        f"Failed to load dev cog {file.stem}", exc_info=True)
 
-        # ---------- Load enabled cogs (mode: prod)----------
-        try:
-            enabled = set(config.get("general", "enabled_cogs", default=[]))
-        except KeyError:
-            logger.error("enabled_cogs missing from config")
-            enabled = set()
-
+        # ---------- Cogs (all modes) ----------
         for file in Path("./cogs").glob("*.py"):
             if file.stem.startswith("_"):
                 continue
-
-            cog = file.stem
-
-            if cog in enabled:
-                try:
-                    await self.load_extension(f"cogs.{cog}")
-                    logger.info(f"Loaded {cog}")
-                except Exception as e:
-                    logger.error(f"Failed to load {cog}", exc_info=True)
+            try:
+                await self.load_extension(f"cogs.{file.stem}")
+                logger.info(f"Loaded {file.stem}")
+            except Exception as e:
+                logger.error(f"Failed to load {file.stem}", exc_info=True)
 
     # -------------------------
-    # Command syncing
+    # COMMAND SYNCING
     # -------------------------
 
     async def sync_commands(self):
         """
         Sync application commands based on runtime mode.
 
-        DEV  → sync to test guild only (instant)
-        PROD → global sync (can take up to 1 hour)
-        DEBUG → guild sync + verbose logging
+        dev/debug -> sync to dev guilds only (instant)
+        prod      -> global sync (can take up to 1 hour)
         """
-
         try:
-            # DEV / DEBUG
             if self.mode in ("dev", "debug"):
-                guild_ids = config.get("general", "dev_guild_ids")
+                guild_ids = await config.get_dev_guild_ids()
 
                 if not guild_ids:
-                    logger.warning("No dev_guild_id set; skipping guild sync")
+                    logger.warning("No dev_guild_ids set; skipping guild sync")
                     return
-
-                if not isinstance(guild_ids, list):
-                    guild_ids = [guild_ids]
 
                 for guild_id in guild_ids:
                     guild = discord.Object(id=guild_id)
@@ -179,13 +194,49 @@ class ISTBot(commands.Bot):
                 f"Command sync failed: {type(e).__name__} - {e}", exc_info=True)
 
     # -------------------------
-    # Services
+    # GUILD REGISTRATION
     # -------------------------
-    async def load_services(self):
-        for file in Path("./services").glob("*py"):
-            if file.stem.startswith("_"):
-                continue
-            module = importlib.import_module(f"services.{file.stem}")
-            if hasattr(module, "setup"):
-                await module.setup(self)
-                logger.info(f"Loaded service: {file.stem}")
+
+    async def register_guild_defaults(self, guild_id: int):
+        """Insert default database rows for a new guild."""
+        db = self.get_service("db")
+        await db.executemany(
+            """INSERT INTO action_log_events (guild_id, event_category, event_type)
+            VALUES ($1, $2, $3) ON CONFLICT DO NOTHING""",
+            get_all_defaults(guild_id)
+        )
+        logger.debug(f"Inserted default rows for guild {guild_id}")
+
+    async def register_guilds(self):
+        """Register all current guilds in the database on startup."""
+        db = self.get_service("db")
+        for guild in self.guilds:
+            await db.execute(
+                "INSERT INTO guilds (guild_id) VALUES ($1) ON CONFLICT DO NOTHING",
+                guild.id
+            )
+            await self.register_guild_defaults(guild.id)
+        logger.info(f"Registered {len(self.guilds)} guild(s) in database")
+
+    # ----------------------------
+    # GUILD EVENTS
+    # ----------------------------
+
+    async def on_guild_join(self, guild: discord.Guild):
+        """Register guild in database when bot joins a new server."""
+        db = self.get_service("db")
+        await db.execute(
+            "INSERT INTO guilds (guild_id) VALUES ($1) ON CONFLICT DO NOTHING",
+            guild.id
+        )
+        await self.register_guild_defaults(guild.id)
+        logger.debug(f"Registered new guild: {guild.name} ({guild.id})")
+
+    async def on_guild_remove(self, guild: discord.Guild):
+        """Remove guild from database when bot leaves."""
+        db = self.get_service("db")
+        await db.execute(
+            "DELETE FROM guilds WHERE guild_id = $1",
+            guild.id
+        )
+        logger.debug(f"Removed guild: {guild.name} ({guild.id})")

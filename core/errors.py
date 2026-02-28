@@ -6,22 +6,16 @@ import aiohttp
 from config.config import config
 from utils.embeds import create_embed
 
-# -------------------------------
-# UNIVERSAL ERROR HANDLING
-#
-# This script provides a centralized error handling system for the entire bot.
-# -------------------------------
-
 logger = logging.getLogger(__name__)
 
-# ---------- WEBHOOK LOGGING ----------
+# ============================================================
+# WEBHOOK LOGGING
+# ============================================================
 
 
 async def log_to_webhook(message: str):
-    """
-    Sends a log message to the configured Discord webhook.
-    """
-    webhook_url = config.get("general", "webhook_url", default=[])
+    """Sends a log message to the configured Discord webhook."""
+    webhook_url = await config.get_bot_config("webhook_url")
     if not webhook_url:
         logger.warning("No webhook URL configured; skipping webhook log.")
         return
@@ -35,13 +29,13 @@ async def log_to_webhook(message: str):
     except Exception as e:
         logger.error(f"Failed to send webhook log: {type(e).__name__} - {e}")
 
-# ---------- SLASH COMMAND ERROR HANDLING ----------
+# ============================================================
+# SLASH COMMAND ERROR HANDLING
+# ============================================================
 
 
 async def handle_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
-    """
-    Handles errors for slash commands.
-    """
+    """Centralized error handler for all slash commands."""
     if isinstance(error, app_commands.CommandOnCooldown):
         embed = create_embed(
             description=f"⏱ This command is on cooldown. Try again in {error.retry_after:.1f}s"

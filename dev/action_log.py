@@ -2,10 +2,15 @@ import discord
 from discord.ext import commands
 import logging
 from config.config import config
+from core.checks import is_cog_enabled
 from utils.embeds import create_embed
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# COG CLASS
+# ============================================================
 
 
 class ActionLog(commands.Cog):
@@ -13,30 +18,27 @@ class ActionLog(commands.Cog):
         self.bot = bot
         logger.info("ActionLog cog initialized")
 
-    # -------------------------
-    # Helpers
-    # -------------------------
+    # ----------------------------
+    # HELPERS
+    # ----------------------------
 
-    def get_event_config(self, guild_id: int, *keys):
-        """Fetch event config for a guild and event type."""
-        return config.get("action_log", str(guild_id), *keys)
-
-    async def get_log_setup(self, guild: discord.Guild, *keys) -> tuple[dict, discord.TextChannel] | tuple[None, None]:
+    async def get_log_setup(self, guild: discord.Guild, event_category: str, event_type: str) -> tuple[dict, discord.TextChannel] | tuple[None, None]:
         """Fetch event config and log channel, returns (None, None) if missing, disabled or channel not found."""
-        event_config = self.get_event_config(guild.id, *keys)
+        event_config = await config.get_action_log_event(guild.id, event_category, event_type)
         logger.debug(
-            f"Event config for {keys[-1]} in guild {guild.id}: {event_config}")
+            f"Event config for {event_type} in guild {guild.id}: {event_config}")
 
-        if not event_config or not event_config.get("enabled", False):
-            logger.debug(f"{keys[-1]} logging disabled for guild {guild.id}")
+        if not event_config or not event_config["channel_id"]:
+            logger.debug(f"{event_type} logging disabled for guild {guild.id}")
             return None, None
 
-        channel_id = event_config.get("channel_id")
+        channel_id = event_config["channel_id"]
         channel = guild.get_channel(channel_id)
         if not channel:
             logger.warning(
                 f"Log channel {channel_id} not found in guild {guild.id}")
             return None, None
+
         return event_config, channel
 
     async def send_log(self, channel: discord.TextChannel, embed: discord.Embed):
@@ -49,7 +51,9 @@ class ActionLog(commands.Cog):
         except discord.HTTPException as e:
             logger.error(f"Failed to send log embed: {e}", exc_info=True)
 
+    @staticmethod
     def format_account_age(created_at) -> str:
+        """Format account age into human readable string."""
         now = datetime.now(timezone.utc)
         delta = now - created_at
 
@@ -68,21 +72,21 @@ class ActionLog(commands.Cog):
         return ", ".join(parts) or "Today"
 
     # -------------------------
-    # Message Events
+    # MESSAGE EVENTS
     # -------------------------
 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent):
-        # Skip if it isn't a guild message
         if not payload.guild_id:
             return
 
-        # Skip if it can't get the guild object
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
 
-        # Skip if author is the bot
+        if not await is_cog_enabled(payload.guild_id, "action_log"):
+            return
+
         message = payload.cached_message
         if message and message.author == self.bot.user:
             return
@@ -90,12 +94,11 @@ class ActionLog(commands.Cog):
         logger.debug(
             f"on_raw_message_delete fired in guild {payload.guild_id}")
 
-        # Skip if disabled & skip if channel is None
-        event_config, channel = await self.get_log_setup(guild, "message_events", "delete")
+        _, channel = await self.get_log_setup(guild, "message_events", "delete")
         if not channel:
             return
 
-        # Use cached message if available, otherwise fall back to partial info
+        # ---------- Build message info ----------
         if message:
             author = message.author
             author_icon = author.display_avatar.url
@@ -111,7 +114,6 @@ class ActionLog(commands.Cog):
             content = "*Message not in cache*"
             author_id = "Unknown"
 
-        # Create embed
         embed = create_embed(
             title="Message Deleted",
             description=(
@@ -125,66 +127,70 @@ class ActionLog(commands.Cog):
             footer=f"User ID: {author_id} • Message ID: {payload.message_id}",
             timestamp=True,
         )
-        embed.add_field(
-            name="Message:",
-            value=content,
-            inline=False
-        )
-        # Send embed
+        embed.add_field(name="Message:", value=content, inline=False)
+
         await self.send_log(channel, embed)
 
     @commands.Cog.listener()
     async def on_raw_bulk_message_delete(self, payload: discord.RawBulkMessageDeleteEvent):
-        # Skip if it isn't a guild message
         if not payload.guild_id:
             return
 
-        # Skip if it can't get the guild object
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
+            return
+
+        if not await is_cog_enabled(payload.guild_id, "action_log"):
             return
 
         logger.debug(
             f"on_raw_bulk_message_delete fired in guild {payload.guild_id}")
 
-        # Skip if disabled & skip if channel is None
-        event_config, channel = await self.get_log_setup(guild, "message_events", "bulk_delete")
+        _, channel = await self.get_log_setup(guild, "message_events", "bulk_delete")
         if not channel:
             return
 
+        # ---------- Build message info ----------
         messages = payload.cached_messages
-        if messages:
-            message_count = len(messages)
-        else:
-            message_count = "*Unknown*"
+        message_count = len(messages) if messages else "*Unknown*"
 
-        # WIP
+        embed = create_embed(
+            title="Bulk Messages Deleted",
+            description=(
+                f"**Channel:** <#{payload.channel.id}>\n"
+                f"*Messages Deleted:** {message_count}"
+            ),
+            color=discord.Color.red(),
+            timestamp=True,
+        )
 
-    # -------------------------
-    # Member Events
-    # -------------------------
+        await self.send_log(channel, embed)
+
+    # ----------------------------
+    # MEMBER EVENTS
+    # ----------------------------
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         logger.debug(
             f"on_member_join fired in guild {member.guild.id} for {member.id}")
 
-        # Skip if disabled & skip if channel is None
-        event_config, channel = await self.get_log_setup(member.guild, "member_events", "join")
+        if not await is_cog_enabled(member.guild.id, "action_log"):
+            return
+
+        _, channel = await self.get_log_setup(member.guild, "member_events", "join")
         if not channel:
             return
 
-        logger.debug(
-            f"on_member_join fired in guild {member.guild.id} for {member.id}")
+        # ---------- Build member info ----------
+        formatted_age = self.format_account_age(member.created_at)
 
-        account_age = member.created_at
-        formatted = self.format_account_age(account_age)
-
-        # Create embed
         embed = create_embed(
             title="Member Joined",
             description=(
-                f"**User:** {member.mention} ({member.id}"
+                f"**User:** {member.mention} ({member.id}\n",
+                f"**Account Created:** <t:{int(member.created_at.stimestamp())}:R>\n",
+                f"**Account Age:** {formatted_age}"
             ),
             color=discord.Color.green(),
             author_name=member.name,
@@ -192,12 +198,7 @@ class ActionLog(commands.Cog):
             footer=f"User ID: {member.id}",
             timestamp=True,
         )
-        embed.add_field(
-            name="Account Age:",
-            value=formatted,
-            inline=False
-        )
-        # Send embed
+
         await self.send_log(channel, embed)
 
 
