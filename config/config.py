@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 class Config:
     """Database-backed config with in-memory cache."""
 
-    def __init__(self, path="config.yaml"):
+    def __init__(self):
         self._db = None
 
     def init(self, bot):
@@ -39,6 +39,11 @@ class Config:
             cog_name
         )
         return row is None
+    
+    async def is_event_category_enabled(self, category: str) -> bool:
+        """Check if an action log event category is globally enabled."""
+        value = await self.get_bot_config(f"disable_{category}")
+        return value != "true"
 
     # -------------------------
     # Per guild
@@ -58,7 +63,7 @@ class Config:
 
     async def get_action_log_event(self, guild_id: int, event_category: str, event_type: str):
         return await self._db.fetchrow(
-            """SELECT enabled, channel_id FROM action_log_events
+            """SELECT channel_id FROM action_log_events
                WHERE guild_id = $1 AND event_category = $2 AND event_type = $3""",
             guild_id, event_category, event_type)
 
