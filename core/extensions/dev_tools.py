@@ -83,27 +83,13 @@ class DeveloperGroup(commands.Cog):
 
     cog_group = app_commands.Group(
         name="cog", description="Manage cogs", parent=developer)
+    
+    config_group = app_commands.Group(
+        name="config", description="Manage config", parent=developer
+    )
 
     service_group = app_commands.Group(
         name="config", description="Manage services", parent=developer)
-
-    # ----------------------------
-    # Developer commands
-    # ----------------------------
-    @developer.command(name="syncdefaults", description="Reload defaults and sync to all guilds")
-    @requires_developer()
-    async def sync_defaults(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-
-        import importlib
-        import config.defaults as defaults_module
-        importlib.reload(defaults_module)
-
-        for guild in self.bot.guilds:
-            await self.bot.register_guild_defaults(guild.id)
-
-        embed = create_embed(description=f"✅ Reloaded defaults and synced to {len(self.bot.guilds)} guild(s)")
-        await interaction.followup.send(embed=embed, ephemeral=True)
     
     # ----------------------------
     # Cog commands
