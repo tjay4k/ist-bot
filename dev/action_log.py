@@ -101,14 +101,14 @@ class ActionLog(commands.Cog):
         # ---------- Build message info ----------
         if message:
             author = message.author
-            author_icon = author.display_avatar.url
+            author_icon_url = author.display_avatar.url
             msg_channel = message.channel.mention
             sent = f"<t:{int(message.created_at.timestamp())}:R>"
             content = message.content
             author_id = author.id
         else:
             author = None
-            author_icon = None
+            author_icon_url = None
             msg_channel = "*Unknown*"
             sent = "*Unknown*"
             content = "*Message not in cache*"
@@ -123,7 +123,7 @@ class ActionLog(commands.Cog):
             ),
             color=discord.Color.red(),
             author_name=author,
-            author_icon=author_icon,
+            author_icon_url=author_icon_url,
             footer=f"User ID: {author_id} • Message ID: {payload.message_id}",
             timestamp=True,
         )
