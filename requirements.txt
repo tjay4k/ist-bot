@@ -1,7 +1,7 @@
 discord.py
 aiohttp
 python-dotenv
-pyyaml
 gspread
+google-auth
 oauth2client
 asyncpg
