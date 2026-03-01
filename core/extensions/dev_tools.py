@@ -89,7 +89,7 @@ class DeveloperGroup(commands.Cog):
     )
 
     service_group = app_commands.Group(
-        name="config", description="Manage services", parent=developer)
+        name="service", description="Manage services", parent=developer)
     
     # ----------------------------
     # Cog commands

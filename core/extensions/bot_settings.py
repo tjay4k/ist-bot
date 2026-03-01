@@ -24,14 +24,14 @@ class BotSettings(commands.Cog):
     # Command groups
     # -------------------------
 
-    bot_group = app_commands.Group(
+    management_group = app_commands.Group(
         name="botsettings", description="Manage bot-wide settings")
     owner_group = app_commands.Group(
-        name="owners", description="Manage bot owners", parent=bot_group)
+        name="owners", description="Manage bot owners", parent=management_group)
     developer_group = app_commands.Group(
-        name="developers", description="Manage bot developers", parent=bot_group)
+        name="developers", description="Manage bot developers", parent=management_group)
     devguild_group = app_commands.Group(
-        name="devguilds", description="Manage dev guilds", parent=bot_group)
+        name="devguilds", description="Manage dev guilds", parent=management_group)
 
     # -------------------------
     # Owner commands
@@ -169,7 +169,7 @@ class BotSettings(commands.Cog):
     # Defaults sync command
     # -------------------------
 
-    @bot_group.command(name="syncdefaults", description="Reload defaults and sync to all guilds")
+    @management_group.command(name="syncdefaults", description="Reload defaults and sync to all guilds")
     @requires_owner()
     async def sync_defaults(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)

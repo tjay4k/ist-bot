@@ -41,9 +41,21 @@ async def event_type_autocomplete(interaction: Interaction, current: str) -> lis
     ]
 
 
-async def cog_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-    """Autocomplete for loaded cogs."""
-    loaded = {ext.split(".")[-1] for ext in interaction.client.extensions}
+async def cog_autocomplete(interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """Autocomplete for loaded cogs. Ignores core.extensions and only add dev.extensions if in dev mode & dev server."""
+    dev_guild_ids = await interaction.client.get_service("db").fetch(
+        "SELECT guild_id FROM dev_guilds"
+    )
+    dev_guild_ids = {row["guild_id"] for row in dev_guild_ids}
+
+    loaded = set()
+    for ext in interaction.client.extensions:
+        if ext.startswith("core.extensions"):
+            continue
+        if ext.startswith("dev.") and interaction.guild.id not in dev_guild_ids:
+            continue
+        loaded.add(ext.split(".")[-1])
+
     return [
         app_commands.Choice(name=cog, value=cog)
         for cog in loaded
@@ -175,7 +187,16 @@ class Settings(commands.Cog):
     async def list_cogs(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-        loaded = {ext.split(".")[-1] for ext in interaction.client.extensions}
+        dev_guild_ids = {row["guild_id"] for row in await self.db.fetch("SELECT guild_id FROM dev_guilds")}
+
+        loaded = set()
+        for ext in interaction.client.extensions:
+            if ext.startswith("core.extensions"):
+                continue
+            if ext.startswith("dev.") and interaction.guild.id not in dev_guild_ids:
+                continue
+            loaded.add(ext.split(".")[-1])
+
         rows = await self.db.fetch(
             "SELECT cog_name, enabled FROM guild_cog_config WHERE guild_id = $1",
             interaction.guild.id
