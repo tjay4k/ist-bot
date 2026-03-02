@@ -40,19 +40,24 @@ async def handle_app_command_error(interaction: discord.Interaction, error: app_
         embed = create_embed(
             description=f"⏱ This command is on cooldown. Try again in {error.retry_after:.1f}s"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    elif isinstance(error, app_commands.CommandNotFound):
+        logger.warning(
+            f"CommandNotFound: {type(error).__name__} - {error}", exc_info=True)
+        await log_to_webhook(f"CommandNotFound: `{interaction.command}`:\n{type(error).__name__} - {error}")
+        embed = create_embed(
+            description=f"❌ This command is not registered. Try restarting your Discord client or wait a few minutes for commands to sync."
+        )
 
     elif isinstance(error, app_commands.BotMissingPermissions):
         embed = create_embed(
             description=f"❌ I don't have the required permissions to do that."
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
 
     elif isinstance(error, app_commands.CheckFailure):
         embed = create_embed(
             description=f"❌ You are not allowed to use this command."
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
 
     else:
         logger.error(
@@ -61,4 +66,14 @@ async def handle_app_command_error(interaction: discord.Interaction, error: app_
         embed = create_embed(
             description="❌ An unexpected error occurred. The developers have been notified."
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+    except discord.errors.NotFound:
+        logger.warning(
+            "Failed to send error response: interaction expired or webhook not found")
+    except discord.errors.HTTPException as e:
+        logger.error(f"Failed to send error response: {e}")

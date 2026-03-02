@@ -1,7 +1,9 @@
-discord.py
-aiohttp
-python-dotenv
-gspread
-google-auth
-oauth2client
-asyncpg
+discord.py>=2.6.0
+aiohttp>=3.11.7
+python-dotenv>=1.0.1
+gspread>=6.2.1
+google-auth>=2.41.1
+oauth2client>=4.1.3
+asyncpg>=0.31.0
+aiofiles>=25.1.0
+pillow>=11.3.0
