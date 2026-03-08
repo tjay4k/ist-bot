@@ -36,3 +36,4 @@ async def setup(bot):
     db = Database()
     await db.connect()
     bot.register_service("db", db)
+    bot.db = db
