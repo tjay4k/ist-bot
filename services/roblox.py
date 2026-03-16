@@ -47,31 +47,27 @@ class RobloxService:
                 created_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
                 account_age_days = (datetime.now(timezone.utc) - created_date).days
 
-            # Check inventory visibility
-            inventory_visible = True
-            async with session.get(
-                f"https://inventory.roblox.com/v1/users/{user_id}/can-view-inventory", timeout=timeout
-            ) as res:
-                if res.status == 200:
-                    data = await res.json()
-                    inventory_visible = data.get("canView", False)
-                else:
-                    logger.warning(f"Failed to check inventory visibility for user {user_id}: {res.status}")
-                    inventory_visible = False
-
             # Get social counts
             followers = await self._fetch_social_count(user_id, "followers", timeout)
             following = await self._fetch_social_count(user_id, "followings", timeout)
             friends = await self._fetch_social_count(user_id, "friends", timeout)
 
-            # Get badges (only if inventory is visible)
-            if inventory_visible:
-                badges, badge_count = await self._fetch_user_badges(user_id)
-                badge_pages = (badge_count + 29) // 30
-            else:
-                badges = []
-                badge_count = None  # None indicates hidden
+            # Try to get badges
+            badges = []
+            badge_count = None
+            badge_pages = None
+            inventory_private = False
+
+            try:
+                badges, badge_count, inventory_private = await self._fetch_user_badges(user_id)
+                if badge_count is not None:
+                    badge_pages = (badge_count + 29) // 30
+            except Exception as e:
+                # API error - badge_count stays None but inventory_private is False
+                logger.warning(f"Could not fetch badges for user {user_id} due to API error: {e}")
+                badge_count = None
                 badge_pages = None
+                inventory_private = False
 
             # Get username history
             previous_usernames = await self.fetch_username_history(user_id)
@@ -88,13 +84,13 @@ class RobloxService:
                 "followers": followers,
                 "following": following,
                 "friends": friends,
-                "badge_count": badge_count,  # Can be None if hidden
-                "badge_pages": badge_pages,  # Can be None if hidden
+                "badge_count": badge_count,  # None if private OR API error
+                "badge_pages": badge_pages,  # None if private OR API error
                 "badges": badges,
                 "previous_usernames": previous_usernames,
                 "has_premium": has_premium,
                 "is_banned": is_banned,
-                "inventory_visible": inventory_visible,
+                "inventory_private": inventory_private,  # True only if 403 response
             }
         except asyncio.TimeoutError:
             raise Exception(f"Timeout fetching data for Roblox user ID {user_id}")
@@ -139,7 +135,7 @@ class RobloxService:
             return 0
 
     async def _fetch_user_badges(self, user_id: int):
-        """Fetch all badges for a user."""
+        """Fetch all badges for a user. Returns (badges, badge_count, is_private)."""
         session = await self.get_session()
         badges = []
         badge_count = 0
@@ -152,9 +148,14 @@ class RobloxService:
                 if cursor:
                     url += f"&cursor={cursor}"
                 async with session.get(url, timeout=timeout) as res:
+                    if res.status == 403:
+                        # 403 = Inventory is private
+                        logger.info(f"Inventory is private for user {user_id}")
+                        return [], None, True
                     if res.status != 200:
                         logger.error(f"Failed to fetch badges for user {user_id}: {res.status}")
-                        break
+                        raise Exception(f"Badge API returned status {res.status}")
+
                     data = await res.json()
                     badges_data = data.get("data", [])
                     badge_count += len(badges_data)
@@ -172,8 +173,9 @@ class RobloxService:
                     await asyncio.sleep(self.badge_fetch_delay)
         except Exception as e:
             logger.error(f"Error fetching badges for user {user_id}: {e}")
+            raise
 
-        return badges, badge_count
+        return badges, badge_count, False
 
     async def fetch_user_groups(self, roblox_id: int):
         """Fetch all groups a user is in with their roles."""

@@ -187,9 +187,13 @@ def create_roblox_embed(user_data: dict, total_groups: int) -> discord.Embed:
 
     badge_count = user_data.get("badge_count")
     badge_pages = user_data.get("badge_pages")
+    inventory_private = user_data.get("inventory_private", False)
 
     if badge_count is None:
-        badge_text = "*Hidden*"
+        if inventory_private:
+            badge_text = "*Private*"
+        else:
+            badge_text = "*Error*"
     else:
         badge_text = f"Count: {badge_count}\nPages: {badge_pages}"
 
