@@ -48,23 +48,30 @@ class RobloxService:
                 account_age_days = (datetime.now(timezone.utc) - created_date).days
 
             # Check inventory visibility
+            inventory_visible = True
             async with session.get(
                 f"https://inventory.roblox.com/v1/users/{user_id}/can-view-inventory", timeout=timeout
             ) as res:
-                if res.status != 200:
-                    raise Exception(f"Failed to fetch inventory visibility: status {res.status}")
-                data = await res.json()
-                if not data.get("canView", False):
-                    raise Exception(f"Roblox user **{username} ({user_id})** has their inventory set to private")
+                if res.status == 200:
+                    data = await res.json()
+                    inventory_visible = data.get("canView", False)
+                else:
+                    logger.warning(f"Failed to check inventory visibility for user {user_id}: {res.status}")
+                    inventory_visible = False
 
             # Get social counts
             followers = await self._fetch_social_count(user_id, "followers", timeout)
             following = await self._fetch_social_count(user_id, "followings", timeout)
             friends = await self._fetch_social_count(user_id, "friends", timeout)
 
-            # Get badges
-            badges, badge_count = await self._fetch_user_badges(user_id)
-            badge_pages = (badge_count + 29) // 30
+            # Get badges (only if inventory is visible)
+            if inventory_visible:
+                badges, badge_count = await self._fetch_user_badges(user_id)
+                badge_pages = (badge_count + 29) // 30
+            else:
+                badges = []
+                badge_count = None  # None indicates hidden
+                badge_pages = None
 
             # Get username history
             previous_usernames = await self.fetch_username_history(user_id)
@@ -81,12 +88,13 @@ class RobloxService:
                 "followers": followers,
                 "following": following,
                 "friends": friends,
-                "badge_count": badge_count,
-                "badge_pages": badge_pages,
+                "badge_count": badge_count,  # Can be None if hidden
+                "badge_pages": badge_pages,  # Can be None if hidden
                 "badges": badges,
                 "previous_usernames": previous_usernames,
                 "has_premium": has_premium,
                 "is_banned": is_banned,
+                "inventory_visible": inventory_visible,
             }
         except asyncio.TimeoutError:
             raise Exception(f"Timeout fetching data for Roblox user ID {user_id}")

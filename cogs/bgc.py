@@ -186,9 +186,18 @@ def create_roblox_embed(user_data: dict, total_groups: int) -> discord.Embed:
         ),
         inline=True,
     )
+
+    badge_count = user_data.get("badge_count")
+    badge_pages = user_data.get("badge_pages")
+
+    if badge_count is None:
+        badge_text = "*Hidden*"
+    else:
+        badge_text = f"Count: {badge_count}\nPages: {badge_pages}"
+
     embed.add_field(
         name="Badges",
-        value=(f"Count: {user_data['badge_count']:,}\n" f"Pages: {user_data['badge_pages']}"),
+        value=badge_text,
         inline=True,
     )
     embed.add_field(name="Groups", value=f"Count: {total_groups}", inline=True)
