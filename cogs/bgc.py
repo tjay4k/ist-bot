@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 MAIN_GROUP = 561225773
 MAIN_DIVISIONS = [1089454647, 535919754]
 SUB_DIVISIONS = [1027815085]
-MIN_DISCORD_AGE_DAYS = 0  # Minimum Discord account age in days
-MIN_BADGE_COUNT = 0  # Minimum Roblox badge count
 
 # ============================================================
 # HELPER FUNCTIONS
@@ -293,18 +291,6 @@ class BackgroundCheck(commands.Cog):
     async def on_ready(self):
         logger.info(f"{self.__class__.__name__} cog has been loaded")
 
-    async def send_check_result(self, user_data: dict, reason: str, channel: discord.TextChannel):
-        """Send a deny message to the channel."""
-        embed = discord.Embed(
-            title="❌ User Denied",
-            description=f"**{user_data.get('username', 'Unknown')}** has been denied",
-            color=discord.Color.red(),
-            timestamp=datetime.now(timezone.utc),
-        )
-        embed.add_field(name="Reason", value=reason, inline=False)
-
-        await channel.send(embed=embed)
-
     @app_commands.command(name="bgc", description="Check a user's Roblox & Discord account information.")
     @app_commands.describe(roblox_id="The Roblox user ID to check.", discord_id="The Discord user ID to check.")
     @requires_developer()
@@ -338,29 +324,11 @@ class BackgroundCheck(commands.Cog):
         if not user_info:
             return
 
-        # Check Discord account age
-        if user_info["account_age_days"] < MIN_DISCORD_AGE_DAYS:
-            await self.send_check_result(
-                {"username": user_info["username"]}, reason="DISCORD ACCOUNT TOO YOUNG", channel=interaction.channel
-            )
-            await interaction.edit_original_response(content="✅ Check completed and logged.")
-            return
-
         # Fetch Roblox user data using the service
         try:
             user_data = await self.bot.roblox.fetch_user_data(roblox_id_int)
         except Exception as e:
             await report_error(interaction, str(e), level="error", user_message=f"❌ {str(e)}")
-            return
-
-        # Check badge count
-        if user_data["badge_count"] < MIN_BADGE_COUNT:
-            await self.send_check_result(
-                user_data,
-                reason=f"NOT ENOUGH BADGES DETECTED ({user_data['badge_count']}/{MIN_BADGE_COUNT})",
-                channel=interaction.channel,
-            )
-            await interaction.edit_original_response(content="✅ Check completed and logged.")
             return
 
         # Fetch groups using the service
