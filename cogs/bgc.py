@@ -392,5 +392,6 @@ class BackgroundCheck(commands.Cog):
         await interaction.edit_original_response(content="✅ Check completed and logged.")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
+    """Load the BackgroundCheck cog."""
     await bot.add_cog(BackgroundCheck(bot))
